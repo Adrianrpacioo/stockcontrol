@@ -31,21 +31,24 @@ main{padding:18px 16px 110px;max-width:720px;margin:auto}
 .empty{background:#fff;border:1px dashed #ccd6cd;border-radius:15px;padding:18px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1}
 .fab{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);border:0;background:#1e7144;color:white;border-radius:16px;padding:15px 22px;font-weight:800;box-shadow:0 8px 25px #173d2760;z-index:5;white-space:nowrap}
 dialog{border:0;border-radius:22px;padding:0;width:min(92vw,420px);box-shadow:0 20px 70px #0004}dialog::backdrop{background:#101b15a8}.modal{padding:21px}.modal h2{margin:0 0 16px;font-size:20px}.field{display:block;margin:12px 0}.field span{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px}.field input,.field select{width:100%;border:1px solid #dce4dc;border-radius:11px;padding:12px;font:inherit;background:white;color:var(--ink)}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:9px;margin-top:18px}.actions button{flex:1;border:0;border-radius:12px;padding:13px;font-weight:800}.cancel{background:#edf1ed;color:#334238}.save{background:#1e7144;color:white}.danger{background:#fff0ef!important;color:#b33b36!important}
-.note{color:var(--muted);font-size:11px;line-height:1.45;margin-top:16px;text-align:center}
+.mode-help{font-size:11px;color:var(--muted);line-height:1.4;margin-top:-4px}.field input,.field select{min-height:44px}.note{color:var(--muted);font-size:11px;line-height:1.45;margin-top:16px;text-align:center}
 @media(min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}header{padding-left:max(20px,calc((100vw - 680px)/2));padding-right:max(20px,calc((100vw - 680px)/2))}}
 </style>
 </head>
 <body>
 <header><div class="top"><div><div class="eyebrow">Tu inventario doméstico</div><h1>Mi despensa</h1><div class="sub">Control sencillo de nevera y despensa</div></div><div class="total"><strong id="totalItems">0</strong><span>PRODUCTOS</span></div></div></header>
 <main>
-<div class="summary"><div class="sum"><b id="totalUnits">0</b><small>Unidades disponibles</small></div><div class="sum"><b id="lowItems">0</b><small>Productos bajos</small></div><div class="sum"><b id="sectionCount">2</b><small>Secciones</small></div></div>
+<div class="summary"><div class="sum"><b id="totalUnits">0</b><small>Productos con existencias</small></div><div class="sum"><b id="lowItems">0</b><small>Productos bajos</small></div><div class="sum"><b id="sectionCount">2</b><small>Secciones</small></div></div>
 <div id="sections"></div>
 <p class="note">Tus datos se guardan en este dispositivo. Puedes usar la app sin conexión después de instalarla.</p>
 </main>
 <button class="fab" id="addItem">＋ Añadir producto</button>
 <dialog id="itemDialog"><form class="modal" id="itemForm"><h2 id="itemHeading">Añadir producto</h2><input type="hidden" id="itemId">
 <label class="field"><span>Nombre del producto</span><input id="name" required maxlength="45" placeholder="Ej. Pechuga de pollo"></label>
-<div class="two"><label class="field"><span>Unidades actuales</span><input id="qty" type="number" min="0" step="1" value="1" required></label><label class="field"><span>Stock máximo</span><input id="max" type="number" min="1" step="1" value="4" required></label></div>
+<label class="field"><span>¿Cómo quieres controlar el stock?</span><select id="mode"><option value="count">Por unidades (paquetes, piezas, botellas…)</option><option value="measure">Por cantidades (g, kg, L, ml…)</option></select></label>
+<div class="mode-help" id="modeHelp">Cuenta paquetes, piezas u objetos completos.</div>
+<div class="two"><label class="field"><span id="qtyLabel">Unidades actuales</span><input id="qty" type="number" min="0" step="1" value="1" required></label><label class="field"><span id="maxLabel">Stock máximo</span><input id="max" type="number" min="0.0001" step="any" value="4" required></label></div>
+<div class="two"><label class="field"><span id="unitLabel">Tipo de unidad</span><input id="unit" maxlength="14" value="paquetes" placeholder="Ej. paquetes"></label><label class="field" id="stepWrap" hidden><span>Incremento + / −</span><input id="step" type="number" min="0.0001" step="any" value="0.25"></label></div>
 <div class="two"><label class="field"><span>Sección</span><select id="section"></select></label><label class="field"><span>Icono (emoji)</span><input id="emoji" maxlength="4" value="📦"></label></div>
 <div class="actions"><button type="button" class="cancel" id="cancelItem">Cancelar</button><button class="save" type="submit">Guardar</button></div>
 <div class="actions" id="deleteWrap" hidden><button type="button" class="danger" id="deleteItem">Eliminar producto</button></div>
@@ -55,71 +58,72 @@ dialog{border:0;border-radius:22px;padding:0;width:min(92vw,420px);box-shadow:0 
 const $=id=>document.getElementById(id);
 const KEY='mi-despensa-v1';
 let data=JSON.parse(localStorage.getItem(KEY)||'null')||{sections:[{id:'fridge',name:'Nevera',emoji:'🧊'},{id:'pantry',name:'Despensa',emoji:'🥫'}],items:[]};
+// Migración no destructiva: los productos de versiones anteriores pasan a modo unidades.
+data.sections ||= [{id:'fridge',name:'Nevera',emoji:'🧊'},{id:'pantry',name:'Despensa',emoji:'🥫'}];
+data.items ||= [];
+data.items.forEach(i=>{if(!i.mode)i.mode='count';if(!i.unit)i.unit=i.mode==='measure'?'g':'unidades';if(!i.step)i.step=i.mode==='measure'?0.25:1;});
 const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
 const uid=()=>Math.random().toString(36).slice(2,10);
-const statusFor=(q,m)=>q/m<=.25?'red':q/m<=.5?'yellow':'green';
+const clean=n=>Math.round((Number(n)+Number.EPSILON)*10000)/10000;
+const statusFor=(q,m)=>m<=0||q/m<=.25?'red':q/m<=.5?'yellow':'green';
+function fmt(n){
+ n=clean(n);const fractions={0.25:'1/4',0.5:'1/2',0.75:'3/4',1.25:'1 1/4',1.5:'1 1/2',1.75:'1 3/4',2.25:'2 1/4',2.5:'2 1/2',2.75:'2 3/4'};
+ if(fractions[n])return fractions[n];
+ return n.toLocaleString('es-ES',{maximumFractionDigits:4});
+}
 function render(){
- const host=$('sections');host.innerHTML='';
- let units=0,low=0;
+ const host=$('sections');host.innerHTML='';let inStock=0,low=0;
  data.sections.forEach(s=>{
-  const items=data.items.filter(i=>i.section===s.id);const section=document.createElement('section');section.className='section';
+  const items=data.items.filter(i=>i.section===s.id),section=document.createElement('section');section.className='section';
   const head=document.createElement('div');head.className='section-head';
   const title=document.createElement('div');title.className='section-title';title.textContent=`${s.emoji||'📦'} ${s.name} `;
   const small=document.createElement('small');small.textContent=`${items.length} productos`;title.append(small);
-  const add=document.createElement('button');add.className='add-small';add.textContent='＋ Producto';add.onclick=()=>openItem(null,s.id);
-  head.append(title,add);section.append(head);
+  const add=document.createElement('button');add.className='add-small';add.textContent='＋ Producto';add.onclick=()=>openItem(null,s.id);head.append(title,add);section.append(head);
   const grid=document.createElement('div');grid.className='grid';
   if(!items.length){const e=document.createElement('div');e.className='empty';e.textContent='Todavía no hay productos en esta sección.';grid.append(e)}
   items.forEach(i=>{
-   units+=i.qty;if(i.qty/i.max<=.5)low++;
-   const st=statusFor(i.qty,i.max),card=document.createElement('article');card.className='item';
-   const top=document.createElement('div');top.className='item-top';
-   const em=document.createElement('div');em.className='emoji';em.textContent=i.emoji||'📦';
-   const menu=document.createElement('button');menu.className='menu';menu.textContent='···';menu.setAttribute('aria-label','Editar '+i.name);menu.onclick=()=>openItem(i.id);
-   top.append(em,menu);
+   const qty=Number(i.qty)||0,max=Math.max(Number(i.max)||1,0.0001),unit=i.unit|| (i.mode==='measure'?'g':'unidades'),st=statusFor(qty,max);
+   if(qty>0)inStock++;if(qty/max<=.5)low++;
+   const card=document.createElement('article');card.className='item';
+   const top=document.createElement('div');top.className='item-top';const em=document.createElement('div');em.className='emoji';em.textContent=i.emoji||'📦';
+   const menu=document.createElement('button');menu.className='menu';menu.textContent='···';menu.setAttribute('aria-label','Editar '+i.name);menu.onclick=()=>openItem(i.id);top.append(em,menu);
    const name=document.createElement('div');name.className='item-name';name.textContent=i.name;
-   const amount=document.createElement('div');amount.className='amount';amount.textContent=`${i.qty} / ${i.max} unidades`;
-   const dots=document.createElement('div');dots.className='dots';dots.setAttribute('aria-label',`${i.qty} de ${i.max}`);
-   // Se muestran todos los puntos hasta 40; para máximos superiores se conserva la proporción y se indica la cifra exacta.
-   const n=Math.min(i.max,40),filled=Math.round(i.qty/i.max*n);
+   const amount=document.createElement('div');amount.className='amount';amount.textContent=`${fmt(qty)} / ${fmt(max)} ${unit}`;
+   const dots=document.createElement('div');dots.className='dots';dots.setAttribute('aria-label',`${fmt(qty)} de ${fmt(max)} ${unit}`);
+   const n=Math.max(1,Math.min(20,Math.ceil(max/(Number(i.step)||1))));const filled=Math.max(0,Math.min(n,Math.round(qty/max*n)));
    for(let x=0;x<n;x++){const d=document.createElement('span');d.className='dot'+(x<filled?` filled ${st}`:'');dots.append(d)}
-   const bottom=document.createElement('div');bottom.className='item-bottom';
-   const status=document.createElement('span');status.className=`status ${st}`;status.textContent=st==='red'?'Crítico':st==='yellow'?'Bajo':'Bien';
-   const controls=document.createElement('div');controls.className='controls';
-   const minus=document.createElement('button');minus.className='step';minus.textContent='−';minus.disabled=i.qty<=0;minus.onclick=()=>changeQty(i.id,-1);
-   const count=document.createElement('span');count.className='count';count.textContent=i.qty;
-   const plus=document.createElement('button');plus.className='step';plus.textContent='+';plus.disabled=i.qty>=i.max;plus.onclick=()=>changeQty(i.id,1);
+   const bottom=document.createElement('div');bottom.className='item-bottom';const status=document.createElement('span');status.className=`status ${st}`;status.textContent=st==='red'?'Crítico':st==='yellow'?'Bajo':'Bien';
+   const controls=document.createElement('div');controls.className='controls';const step=i.mode==='measure'?Math.max(Number(i.step)||0.25,0.0001):1;
+   const minus=document.createElement('button');minus.className='step';minus.textContent='−';minus.disabled=qty<=0;minus.onclick=()=>changeQty(i.id,-step);
+   const count=document.createElement('span');count.className='count';count.textContent=fmt(qty);
+   const plus=document.createElement('button');plus.className='step';plus.textContent='+';plus.disabled=qty>=max;plus.onclick=()=>changeQty(i.id,step);
    controls.append(minus,count,plus);bottom.append(status,controls);card.append(top,name,amount,dots,bottom);grid.append(card);
   });
-  section.append(grid);
-  const sectionTools=document.createElement('div');sectionTools.style.cssText='display:flex;justify-content:flex-end;gap:12px;margin-top:8px';
+  section.append(grid);const tools=document.createElement('div');tools.style.cssText='display:flex;justify-content:flex-end;gap:12px;margin-top:8px';
   const rename=document.createElement('button');rename.className='add-small';rename.textContent='Editar sección';rename.onclick=()=>renameSection(s.id);
   const remove=document.createElement('button');remove.className='add-small';remove.textContent='Eliminar sección';remove.onclick=()=>removeSection(s.id);
-  if(data.sections.length>1)sectionTools.append(rename,remove);else sectionTools.append(rename);
-  section.append(sectionTools);host.append(section);
+  if(data.sections.length>1)tools.append(rename,remove);else tools.append(rename);section.append(tools);host.append(section);
  });
- $('totalItems').textContent=data.items.length;$('totalUnits').textContent=units;$('lowItems').textContent=low;$('sectionCount').textContent=data.sections.length;
+ $('totalItems').textContent=data.items.length;$('totalUnits').textContent=inStock;$('lowItems').textContent=low;$('sectionCount').textContent=data.sections.length;
 }
-function changeQty(id,delta){const i=data.items.find(x=>x.id===id);i.qty=Math.max(0,Math.min(i.max,i.qty+delta));save()}
+function changeQty(id,delta){const i=data.items.find(x=>x.id===id);i.qty=clean(Math.max(0,Math.min(Number(i.max),Number(i.qty)+delta)));save()}
 function fillSections(selected){$('section').innerHTML='';data.sections.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;$('section').append(o)});$('section').value=selected||data.sections[0]?.id}
+function updateModeFields(){const measure=$('mode').value==='measure';$('qtyLabel').textContent=measure?'Cantidad actual':'Unidades actuales';$('maxLabel').textContent=measure?'Cantidad máxima':'Stock máximo';$('unitLabel').textContent=measure?'Unidad de medida':'Tipo de unidad';$('unit').placeholder=measure?'Ej. g, kg, L, ml':'Ej. paquetes, botellas';$('unit').value=$('unit').value.trim()||(measure?'g':'unidades');$('stepWrap').hidden=!measure;$('modeHelp').textContent=measure?'Usa g, kg, L, ml u otra unidad. Define cuánto suma o resta cada toque. Ejemplo: 0,25 para ajustar de cuarto en cuarto.':'Cuenta paquetes, piezas, botellas u objetos completos. Cada toque suma o resta una unidad.';$('qty').step=measure?'any':'1';$('max').step=measure?'any':'1';$('step').required=measure}
 function openItem(id,sectionId){
- const i=data.items.find(x=>x.id===id);$('itemForm').reset();$('itemId').value=i?.id||'';
- $('itemHeading').textContent=i?'Editar producto':'Añadir producto';$('name').value=i?.name||'';$('qty').value=i?.qty??1;$('max').value=i?.max??4;$('emoji').value=i?.emoji||'📦';fillSections(i?.section||sectionId);
- $('deleteWrap').hidden=!i;$('itemDialog').showModal();
+ const i=data.items.find(x=>x.id===id);$('itemForm').reset();$('itemId').value=i?.id||'';$('itemHeading').textContent=i?'Editar producto':'Añadir producto';
+ $('name').value=i?.name||'';$('mode').value=i?.mode||'count';$('qty').value=i?.qty??1;$('max').value=i?.max??4;$('unit').value=i?.unit||(i?.mode==='measure'?'g':'unidades');$('step').value=i?.step??0.25;$('emoji').value=i?.emoji||'📦';fillSections(i?.section||sectionId);updateModeFields();$('deleteWrap').hidden=!i;$('itemDialog').showModal();
 }
-$('addItem').onclick=()=>openItem(null);
-$('cancelItem').onclick=()=>$('itemDialog').close();
-$('itemForm').onsubmit=e=>{e.preventDefault();const id=$('itemId').value,max=Math.max(1,Math.floor(+$('max').value)),qty=Math.max(0,Math.min(max,Math.floor(+$('qty').value)));
- const obj={id:id||uid(),name:$('name').value.trim(),qty,max,section:$('section').value,emoji:$('emoji').value.trim()||'📦'};
+$('mode').onchange=updateModeFields;$('addItem').onclick=()=>openItem(null);$('cancelItem').onclick=()=>$('itemDialog').close();
+$('itemForm').onsubmit=e=>{e.preventDefault();const id=$('itemId').value,mode=$('mode').value;let max=Number($('max').value),qty=Number($('qty').value),step=mode==='measure'?Number($('step').value):1;
+ if(!Number.isFinite(max)||max<=0||!Number.isFinite(qty)||qty<0||!Number.isFinite(step)||step<=0){alert('Introduce cantidades válidas mayores que cero para el máximo y el incremento.');return}
+ max=clean(max);qty=clean(Math.min(max,qty));if(mode==='count'){max=Math.max(1,Math.floor(max));qty=Math.min(max,Math.max(0,Math.floor(qty)));step=1}
+ const obj={id:id||uid(),name:$('name').value.trim(),qty,max,mode,unit:$('unit').value.trim()||(mode==='measure'?'g':'unidades'),step,section:$('section').value,emoji:$('emoji').value.trim()||'📦'};
  if(id)data.items[data.items.findIndex(x=>x.id===id)]=obj;else data.items.push(obj);$('itemDialog').close();save()};
 $('deleteItem').onclick=()=>{const id=$('itemId').value;if(confirm('¿Eliminar este producto?')){data.items=data.items.filter(i=>i.id!==id);$('itemDialog').close();save()}};
-$('sectionForm').onsubmit=e=>{e.preventDefault();const name=$('sectionName').value.trim();if(!name)return;data.sections.push({id:uid(),name,emoji:'📦'});$('sectionDialog').close();save()};
-$('cancelSection').onclick=()=>$('sectionDialog').close();
+$('sectionForm').onsubmit=e=>{e.preventDefault();const name=$('sectionName').value.trim();if(!name)return;data.sections.push({id:uid(),name,emoji:'📦'});$('sectionDialog').close();save()};$('cancelSection').onclick=()=>$('sectionDialog').close();
 function renameSection(id){const s=data.sections.find(x=>x.id===id),name=prompt('Nuevo nombre de la sección:',s.name);if(name?.trim()){s.name=name.trim();save()}}
 function removeSection(id){const s=data.sections.find(x=>x.id===id);if(!confirm(`¿Eliminar "${s.name}"? Sus productos también se eliminarán.`))return;data.sections=data.sections.filter(x=>x.id!==id);data.items=data.items.filter(x=>x.section!==id);save()}
-$('addItem').insertAdjacentHTML('beforebegin','');
 const sectionAdd=document.createElement('button');sectionAdd.className='add-small';sectionAdd.textContent='＋ Añadir sección';sectionAdd.style.cssText='display:block;margin:0 auto 18px';sectionAdd.onclick=()=>$('sectionDialog').showModal();$('sections').before(sectionAdd);
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-render();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));render();
 </script>
 </body></html>
