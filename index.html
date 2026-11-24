@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17231d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mi despensa">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mi despensa · Control de stock</title>
+<style>
+:root{color-scheme:light;--bg:#f4f6f2;--ink:#18231d;--muted:#718078;--line:#e4e9e3;--green:#248653;--yellow:#d99b18;--red:#d94a48;--card:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:#17231d;color:white;padding:25px 20px 22px;border-radius:0 0 24px 24px}
+.top{display:flex;align-items:center;justify-content:space-between}.eyebrow{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#a9c4b2;font-weight:700}
+h1{font-size:27px;margin:7px 0 4px;letter-spacing:-.7px}.sub{color:#c4d2c8;font-size:13px}
+.total{background:#ffffff18;border:1px solid #ffffff25;border-radius:14px;padding:9px 12px;text-align:center;min-width:65px}.total strong{display:block;font-size:21px}.total span{font-size:10px;color:#c4d2c8}
+main{padding:18px 16px 110px;max-width:720px;margin:auto}
+.summary{display:flex;gap:9px;margin:0 0 18px}.sum{background:white;border:1px solid var(--line);border-radius:14px;padding:12px 14px;flex:1}.sum b{display:block;font-size:19px}.sum small{color:var(--muted);font-size:11px}
+.section{margin:20px 0 24px}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}.section-title{font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}.section-title small{font-size:11px;color:var(--muted);font-weight:600}
+.add-small{border:0;background:#e5efe7;color:#236a40;border-radius:10px;padding:8px 11px;font-weight:700;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:13px;min-width:0;box-shadow:0 2px 8px #1b352008}
+.item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:5px}.emoji{font-size:25px;line-height:1.2}.menu{border:0;background:transparent;color:#87938b;font-size:20px;padding:0 3px;line-height:1}
+.item-name{font-weight:750;font-size:15px;margin:8px 0 2px;overflow-wrap:anywhere}.amount{font-size:12px;color:var(--muted)}
+.dots{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 12px;min-height:9px}.dot{width:8px;height:8px;border-radius:50%;background:#e3e8e3}.dot.filled.green{background:var(--green)}.dot.filled.yellow{background:var(--yellow)}.dot.filled.red{background:var(--red)}
+.item-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px}.status{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}.status.green{color:var(--green)}.status.yellow{color:var(--yellow)}.status.red{color:var(--red)}
+.controls{display:flex;align-items:center;gap:8px}.step{width:29px;height:29px;border:0;border-radius:9px;background:#edf1ed;color:#26372c;font-size:19px;font-weight:500}.step:disabled{opacity:.3}.count{font-size:13px;font-weight:800;min-width:13px;text-align:center}
+.empty{background:#fff;border:1px dashed #ccd6cd;border-radius:15px;padding:18px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1}
+.fab{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);border:0;background:#1e7144;color:white;border-radius:16px;padding:15px 22px;font-weight:800;box-shadow:0 8px 25px #173d2760;z-index:5;white-space:nowrap}
+dialog{border:0;border-radius:22px;padding:0;width:min(92vw,420px);box-shadow:0 20px 70px #0004}dialog::backdrop{background:#101b15a8}.modal{padding:21px}.modal h2{margin:0 0 16px;font-size:20px}.field{display:block;margin:12px 0}.field span{display:block;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:6px}.field input,.field select{width:100%;border:1px solid #dce4dc;border-radius:11px;padding:12px;font:inherit;background:white;color:var(--ink)}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:9px;margin-top:18px}.actions button{flex:1;border:0;border-radius:12px;padding:13px;font-weight:800}.cancel{background:#edf1ed;color:#334238}.save{background:#1e7144;color:white}.danger{background:#fff0ef!important;color:#b33b36!important}
+.note{color:var(--muted);font-size:11px;line-height:1.45;margin-top:16px;text-align:center}
+@media(min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}header{padding-left:max(20px,calc((100vw - 680px)/2));padding-right:max(20px,calc((100vw - 680px)/2))}}
+</style>
+</head>
+<body>
+<header><div class="top"><div><div class="eyebrow">Tu inventario doméstico</div><h1>Mi despensa</h1><div class="sub">Control sencillo de nevera y despensa</div></div><div class="total"><strong id="totalItems">0</strong><span>PRODUCTOS</span></div></div></header>
+<main>
+<div class="summary"><div class="sum"><b id="totalUnits">0</b><small>Unidades disponibles</small></div><div class="sum"><b id="lowItems">0</b><small>Productos bajos</small></div><div class="sum"><b id="sectionCount">2</b><small>Secciones</small></div></div>
+<div id="sections"></div>
+<p class="note">Tus datos se guardan en este dispositivo. Puedes usar la app sin conexión después de instalarla.</p>
+</main>
+<button class="fab" id="addItem">＋ Añadir producto</button>
+<dialog id="itemDialog"><form class="modal" id="itemForm"><h2 id="itemHeading">Añadir producto</h2><input type="hidden" id="itemId">
+<label class="field"><span>Nombre del producto</span><input id="name" required maxlength="45" placeholder="Ej. Pechuga de pollo"></label>
+<div class="two"><label class="field"><span>Unidades actuales</span><input id="qty" type="number" min="0" step="1" value="1" required></label><label class="field"><span>Stock máximo</span><input id="max" type="number" min="1" step="1" value="4" required></label></div>
+<div class="two"><label class="field"><span>Sección</span><select id="section"></select></label><label class="field"><span>Icono (emoji)</span><input id="emoji" maxlength="4" value="📦"></label></div>
+<div class="actions"><button type="button" class="cancel" id="cancelItem">Cancelar</button><button class="save" type="submit">Guardar</button></div>
+<div class="actions" id="deleteWrap" hidden><button type="button" class="danger" id="deleteItem">Eliminar producto</button></div>
+</form></dialog>
+<dialog id="sectionDialog"><form class="modal" id="sectionForm"><h2>Nueva sección</h2><label class="field"><span>Nombre</span><input id="sectionName" required maxlength="30" placeholder="Ej. Congelador"></label><div class="actions"><button type="button" class="cancel" id="cancelSection">Cancelar</button><button class="save">Crear sección</button></div></form></dialog>
+<script>
+const $=id=>document.getElementById(id);
+const KEY='mi-despensa-v1';
+let data=JSON.parse(localStorage.getItem(KEY)||'null')||{sections:[{id:'fridge',name:'Nevera',emoji:'🧊'},{id:'pantry',name:'Despensa',emoji:'🥫'}],items:[]};
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
+const uid=()=>Math.random().toString(36).slice(2,10);
+const statusFor=(q,m)=>q/m<=.25?'red':q/m<=.5?'yellow':'green';
+function render(){
+ const host=$('sections');host.innerHTML='';
+ let units=0,low=0;
+ data.sections.forEach(s=>{
+  const items=data.items.filter(i=>i.section===s.id);const section=document.createElement('section');section.className='section';
+  const head=document.createElement('div');head.className='section-head';
+  const title=document.createElement('div');title.className='section-title';title.textContent=`${s.emoji||'📦'} ${s.name} `;
+  const small=document.createElement('small');small.textContent=`${items.length} productos`;title.append(small);
+  const add=document.createElement('button');add.className='add-small';add.textContent='＋ Producto';add.onclick=()=>openItem(null,s.id);
+  head.append(title,add);section.append(head);
+  const grid=document.createElement('div');grid.className='grid';
+  if(!items.length){const e=document.createElement('div');e.className='empty';e.textContent='Todavía no hay productos en esta sección.';grid.append(e)}
+  items.forEach(i=>{
+   units+=i.qty;if(i.qty/i.max<=.5)low++;
+   const st=statusFor(i.qty,i.max),card=document.createElement('article');card.className='item';
+   const top=document.createElement('div');top.className='item-top';
+   const em=document.createElement('div');em.className='emoji';em.textContent=i.emoji||'📦';
+   const menu=document.createElement('button');menu.className='menu';menu.textContent='···';menu.setAttribute('aria-label','Editar '+i.name);menu.onclick=()=>openItem(i.id);
+   top.append(em,menu);
+   const name=document.createElement('div');name.className='item-name';name.textContent=i.name;
+   const amount=document.createElement('div');amount.className='amount';amount.textContent=`${i.qty} / ${i.max} unidades`;
+   const dots=document.createElement('div');dots.className='dots';dots.setAttribute('aria-label',`${i.qty} de ${i.max}`);
+   // Se muestran todos los puntos hasta 40; para máximos superiores se conserva la proporción y se indica la cifra exacta.
+   const n=Math.min(i.max,40),filled=Math.round(i.qty/i.max*n);
+   for(let x=0;x<n;x++){const d=document.createElement('span');d.className='dot'+(x<filled?` filled ${st}`:'');dots.append(d)}
+   const bottom=document.createElement('div');bottom.className='item-bottom';
+   const status=document.createElement('span');status.className=`status ${st}`;status.textContent=st==='red'?'Crítico':st==='yellow'?'Bajo':'Bien';
+   const controls=document.createElement('div');controls.className='controls';
+   const minus=document.createElement('button');minus.className='step';minus.textContent='−';minus.disabled=i.qty<=0;minus.onclick=()=>changeQty(i.id,-1);
+   const count=document.createElement('span');count.className='count';count.textContent=i.qty;
+   const plus=document.createElement('button');plus.className='step';plus.textContent='+';plus.disabled=i.qty>=i.max;plus.onclick=()=>changeQty(i.id,1);
+   controls.append(minus,count,plus);bottom.append(status,controls);card.append(top,name,amount,dots,bottom);grid.append(card);
+  });
+  section.append(grid);
+  const sectionTools=document.createElement('div');sectionTools.style.cssText='display:flex;justify-content:flex-end;gap:12px;margin-top:8px';
+  const rename=document.createElement('button');rename.className='add-small';rename.textContent='Editar sección';rename.onclick=()=>renameSection(s.id);
+  const remove=document.createElement('button');remove.className='add-small';remove.textContent='Eliminar sección';remove.onclick=()=>removeSection(s.id);
+  if(data.sections.length>1)sectionTools.append(rename,remove);else sectionTools.append(rename);
+  section.append(sectionTools);host.append(section);
+ });
+ $('totalItems').textContent=data.items.length;$('totalUnits').textContent=units;$('lowItems').textContent=low;$('sectionCount').textContent=data.sections.length;
+}
+function changeQty(id,delta){const i=data.items.find(x=>x.id===id);i.qty=Math.max(0,Math.min(i.max,i.qty+delta));save()}
+function fillSections(selected){$('section').innerHTML='';data.sections.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;$('section').append(o)});$('section').value=selected||data.sections[0]?.id}
+function openItem(id,sectionId){
+ const i=data.items.find(x=>x.id===id);$('itemForm').reset();$('itemId').value=i?.id||'';
+ $('itemHeading').textContent=i?'Editar producto':'Añadir producto';$('name').value=i?.name||'';$('qty').value=i?.qty??1;$('max').value=i?.max??4;$('emoji').value=i?.emoji||'📦';fillSections(i?.section||sectionId);
+ $('deleteWrap').hidden=!i;$('itemDialog').showModal();
+}
+$('addItem').onclick=()=>openItem(null);
+$('cancelItem').onclick=()=>$('itemDialog').close();
+$('itemForm').onsubmit=e=>{e.preventDefault();const id=$('itemId').value,max=Math.max(1,Math.floor(+$('max').value)),qty=Math.max(0,Math.min(max,Math.floor(+$('qty').value)));
+ const obj={id:id||uid(),name:$('name').value.trim(),qty,max,section:$('section').value,emoji:$('emoji').value.trim()||'📦'};
+ if(id)data.items[data.items.findIndex(x=>x.id===id)]=obj;else data.items.push(obj);$('itemDialog').close();save()};
+$('deleteItem').onclick=()=>{const id=$('itemId').value;if(confirm('¿Eliminar este producto?')){data.items=data.items.filter(i=>i.id!==id);$('itemDialog').close();save()}};
+$('sectionForm').onsubmit=e=>{e.preventDefault();const name=$('sectionName').value.trim();if(!name)return;data.sections.push({id:uid(),name,emoji:'📦'});$('sectionDialog').close();save()};
+$('cancelSection').onclick=()=>$('sectionDialog').close();
+function renameSection(id){const s=data.sections.find(x=>x.id===id),name=prompt('Nuevo nombre de la sección:',s.name);if(name?.trim()){s.name=name.trim();save()}}
+function removeSection(id){const s=data.sections.find(x=>x.id===id);if(!confirm(`¿Eliminar "${s.name}"? Sus productos también se eliminarán.`))return;data.sections=data.sections.filter(x=>x.id!==id);data.items=data.items.filter(x=>x.section!==id);save()}
+$('addItem').insertAdjacentHTML('beforebegin','');
+const sectionAdd=document.createElement('button');sectionAdd.className='add-small';sectionAdd.textContent='＋ Añadir sección';sectionAdd.style.cssText='display:block;margin:0 auto 18px';sectionAdd.onclick=()=>$('sectionDialog').showModal();$('sections').before(sectionAdd);
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();
+</script>
+</body></html>
